@@ -1,0 +1,24 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: lms_panel_app
+        ports:
+            - '3000:3000'
+        environment:
+            - PORT=3000
+            - MONGO_URL=mongodb://mongodb:27017/booss
+        depends_on:
+            - mongodb
+
+    mongodb:
+        image: mongo:latest
+        container_name: lms_panel_mongo
+        ports:
+            - '27017:27017'
+        volumes:
+            - mongo_data:/data/db
+
+volumes:
+    mongo_data:
