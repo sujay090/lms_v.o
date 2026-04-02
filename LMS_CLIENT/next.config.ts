@@ -1,6 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'http',
+                hostname: 'localhost',
+            },
+            {
+                protocol: 'https',
+                hostname: '**', // Allow any HTTPS domain just in case of AWS direct urls
+            }
+        ],
+    },
     async rewrites() {
         return [
             {

@@ -2,14 +2,25 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { getUserModel } from '../../models/adminModels/users.model';
 import { getSessionModel } from '../../models/adminModels/session.model';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(1, 'Password is required')
+});
 
 export const loginAdmin = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            res.status(400).json({ message: 'Email and password are required' });
+        const validation = loginSchema.safeParse(req.body);
+        if (!validation.success) {
+            res.status(400).json({ 
+                message: validation.error.issues[0].message,
+                errors: validation.error.format()
+            });
             return;
         }
+
+        const { email, password } = validation.data;
 
         if (!req.tenantDb) {
             res.status(500).json({ message: 'Tenant database connection missing' });

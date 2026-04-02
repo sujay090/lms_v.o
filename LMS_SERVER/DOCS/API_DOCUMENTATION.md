@@ -12,8 +12,84 @@
 |---------|-----------|-------------------|
 | [Health Check](#health-check) | `/api/health` | None |
 | [Tenant Management](#tenant-management) | `/api/tenants` | None |
-| [Superadmin — Form Templates](#superadmin--form-templates) | `/api/superadmin/forms` | None |
-| [Admin — Student Management](#admin--student-management) | `/api/admin/students` | `tenantResolver` |
+| [Admin — Authentication](#admin--authentication) | `/api/admin/auth` | `tenantResolver` |
+| [Superadmin — Form Templates](#superadmin--form-templates) | `/api/superadmin/forms` | `tenantResolver`, `isAuthenticated` |
+| [Admin — Student Management](#admin--student-management) | `/api/admin/students` | `tenantResolver`, `isAuthenticated` |
+
+---
+
+## Admin — Authentication
+
+Manage stateful sessions for admins and superadmins.
+
+**Source Files:**
+- Route: `src/routes/admin/auth.routes.ts`
+- Controller: `src/controllers/admin/auth.controller.ts`
+- Model: `src/models/adminModels/session.model.ts`
+
+---
+
+### `POST /api/admin/auth/login` — Login Admin
+
+Creates a secure database session and returns an HTTP-only signed cookie.
+
+**Request Body**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `email` | `string` | ✅ | Admin's email |
+| `password` | `string` | ✅ | Admin's password |
+
+**Response `200 OK`** (Sets `sid` Signed Cookie)
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": "665c3d4e5f6...",
+    "email": "admin@example.com",
+    "role": "admin",
+    "businessName": "Acme Corp",
+    "businessDomain": "acme.lms.com"
+  }
+}
+```
+
+---
+
+### `GET /api/admin/auth/me` — Verify Authentication
+
+Verifies the user's current session via the `sid` signed cookie. Protected by `isAuthenticated` middleware.
+
+**Request Body**: None
+
+**Response `200 OK`**
+```json
+{
+  "authenticated": true,
+  "user": {
+    "id": "665c3d4e5f6...",
+    "email": "admin@example.com",
+    "role": "admin",
+    "businessName": "Acme Corp",
+    "businessDomain": "acme.lms.com"
+  }
+}
+```
+
+---
+
+### `POST /api/admin/auth/logout` — Logout Admin
+
+Revokes the active session from the database and clears the user's `sid` cookie.
+
+**Request Body**: None
+
+**Response `200 OK`** (Clears `sid` Signed Cookie)
+```json
+{
+  "message": "Logout successful"
+}
+```
 
 ---
 
@@ -241,13 +317,15 @@ Retrieve a form template configuration by its identifier.
         "id": "email",
         "label": "Email Address",
         "type": "email",
-        "required": true
+        "required": true,
+        "isActive": true
       },
       {
         "id": "course",
         "label": "Course",
         "type": "select",
         "required": false,
+        "isActive": true,
         "options": ["Math", "Science", "History"]
       }
     ],
@@ -256,7 +334,7 @@ Retrieve a form template configuration by its identifier.
 }
 ```
 
-**Field Type Enum**: `text` | `email` | `number` | `date` | `select` | `textarea`
+**Field Type Enum**: `text` | `email` | `number` | `date` | `select` | `textarea` | `file`
 
 **Error Responses**
 
@@ -287,8 +365,9 @@ Create or update a form template. If a template with the given `formId` exists, 
 |-------|------|----------|-------------|
 | `id` | `string` | ✅ | Unique field identifier (used as DB key) |
 | `label` | `string` | ✅ | Display label shown on the form |
-| `type` | `string` | ✅ | One of: `text`, `email`, `number`, `date`, `select`, `textarea` |
+| `type` | `string` | ✅ | One of: `text`, `email`, `number`, `date`, `select`, `textarea`, `file` |
 | `required` | `boolean` | ✅ | Whether the field is mandatory |
+| `isActive` | `boolean` | ✅ | Whether the field is active (default inside code is true) |
 | `options` | `string[]` | ❌ | Required only when `type` is `select` |
 
 **Example Request** — `PUT /api/superadmin/forms/student_registration`
@@ -296,11 +375,11 @@ Create or update a form template. If a template with the given `formId` exists, 
 {
   "name": "Student Registration Form",
   "fields": [
-    { "id": "firstName", "label": "First Name", "type": "text", "required": true },
-    { "id": "lastName", "label": "Last Name", "type": "text", "required": true },
-    { "id": "email", "label": "Email", "type": "email", "required": true },
-    { "id": "dob", "label": "Date of Birth", "type": "date", "required": false },
-    { "id": "course", "label": "Course", "type": "select", "required": true, "options": ["Math", "Science", "History"] }
+    { "id": "firstName", "label": "First Name", "type": "text", "required": true, "isActive": true },
+    { "id": "lastName", "label": "Last Name", "type": "text", "required": true, "isActive": true },
+    { "id": "email", "label": "Email", "type": "email", "required": true, "isActive": true },
+    { "id": "dob", "label": "Date of Birth", "type": "date", "required": false, "isActive": true },
+    { "id": "course", "label": "Course", "type": "select", "required": true, "isActive": true, "options": ["Math", "Science", "History"] }
   ]
 }
 ```
@@ -476,8 +555,9 @@ Fetch all students from the tenant's database, sorted by newest first.
   fields:  [{
     id:       String       // unique field key
     label:    String       // display label
-    type:     String       // "text" | "email" | "number" | "date" | "select" | "textarea"
+    type:     String       // "text" | "email" | "number" | "date" | "select" | "textarea" | "file"
     required: Boolean
+    isActive: Boolean
     options:  [String]     // only for type "select"
   }]
 }

@@ -1,16 +1,17 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 import { connectDB } from "./utils/db";
 import tenantRouter from "./routes/tenantsRoutes/tenants.routes";
 import { tenantResolver } from "./middlewares/tenantResolver";
 import formTemplateRoutes from "./routes/superAdmin/formTemplate.routes";
 import studentRoutes from "./routes/admin/student.routes";
 import authRoutes from "./routes/admin/auth.routes";
+import fileRoutes, { publicFileRouter } from "./routes/admin/file.routes";
 import { isAuthenticated } from "./middlewares/authMiddleware";
 
-dotenv.config();
 
 const app = express();
 app.use(cors({
@@ -35,6 +36,8 @@ app.use("/api/tenants", tenantRouter);
 // admin routes*******************************************************************
 app.use("/api/admin/auth", tenantResolver, authRoutes);
 app.use("/api/admin/students", tenantResolver, isAuthenticated, studentRoutes);
+app.use("/api/admin/files", publicFileRouter);
+app.use("/api/admin/files", tenantResolver, fileRoutes);
 
 // super admin routes*****************************************************************
 app.use("/api/superadmin/forms", tenantResolver, isAuthenticated, formTemplateRoutes);

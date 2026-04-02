@@ -6,12 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CheckCircle2, AlertCircle } from "lucide-react"
-import { getRegistrationForm, registerStudent } from "@/api"
+import { CheckCircle2, AlertCircle, UploadCloud, Loader2 } from "lucide-react"
+import { getRegistrationForm, registerStudent, uploadFile } from "@/api"
+import { FormField } from "@/types/admin"
 
 export default function RegisterStudentPage() {
     const [formData, setFormData] = useState<Record<string, any>>({})
     const [submitting, setSubmitting] = useState(false)
+    const [uploading, setUploading] = useState<Record<string, boolean>>({})
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState('')
     const queryClient = useQueryClient()
@@ -21,12 +23,28 @@ export default function RegisterStudentPage() {
         queryFn: getRegistrationForm,
     })
 
-    const rawFields = data?.success ? (data.data?.fields || []) : []
-    const fields = rawFields.filter((f: any) => f.isActive !== false)
+    const fields: FormField[] = data?.success ? (data.data?.fields || []) : []
 
     const handleInputChange = (id: string, value: any) => {
         setFormData(prev => ({ ...prev, [id]: value }))
     }
+
+    const handleFileUpload = async (id: string, file: File) => {
+        if (!file) return;
+        setUploading(prev => ({ ...prev, [id]: true }));
+        try {
+            const result = await uploadFile(file);
+            if (result.success && result.data && result.data.url) {
+                setFormData(prev => ({ ...prev, [id]: result.data!.url }));
+            } else {
+                setError(result.message || 'Failed to upload file');
+            }
+        } catch (err: any) {
+            setError(err.message || 'File upload error');
+        } finally {
+            setUploading(prev => ({ ...prev, [id]: false }));
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -93,7 +111,7 @@ export default function RegisterStudentPage() {
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {fields.map((field: any) => (
+                            {fields.map((field) => (
                                 <div key={field.id} className={`space-y-2 ${field.type === 'textarea' ? 'col-span-1 md:col-span-2' : ''}`}>
                                     <Label className="text-slate-700 font-semibold">
                                         {field.label} {field.required && <span className="text-red-500">*</span>}
@@ -159,6 +177,39 @@ export default function RegisterStudentPage() {
                                             onChange={(e) => handleInputChange(field.id, e.target.value)}
                                             className="flex min-h-[100px] w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500"
                                         />
+                                    )}
+
+                                    {field.type === 'file' && (
+                                        <div className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex items-center justify-center transition focus-within:ring-2 focus-within:ring-indigo-500">
+                                            {uploading[field.id] ? (
+                                                <div className="flex items-center gap-2 text-indigo-600 p-2">
+                                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                                    <span className="text-sm font-medium">Uploading...</span>
+                                                </div>
+                                            ) : formData[field.id] ? (
+                                                <div className="flex flex-col items-center gap-2 relative">
+                                                    <span className="text-sm text-green-600 font-medium">File Uploaded Successfully</span>
+                                                    <a href={formData[field.id]} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 underline truncate max-w-[200px]">View File</a>
+                                                    <Button variant="outline" size="sm" className="mt-2" onClick={(e) => { e.preventDefault(); handleInputChange(field.id, ''); }}>Choose Another</Button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex flex-col items-center gap-2 pointer-events-none p-2">
+                                                        <UploadCloud className="h-6 w-6 text-slate-400" />
+                                                        <span className="text-sm text-slate-500 font-medium">Click to upload file</span>
+                                                    </div>
+                                                    <Input
+                                                        type="file"
+                                                        required={field.required && !formData[field.id]}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleFileUpload(field.id, file);
+                                                        }}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    />
+                                                </>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             ))}

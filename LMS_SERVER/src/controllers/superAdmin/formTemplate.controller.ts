@@ -36,7 +36,6 @@ export const getFormTemplate = async (req: Request, res: Response) => {
 
         const FormTemplate = getFormTemplateModel(req.tenantDb);
         const template = await FormTemplate.findOne({ formId });
-
         if (!template) {
             return res.status(404).json({ success: false, message: 'Form template not found' });
         }

@@ -6,12 +6,11 @@ export interface IStudent extends Document {
 
 const studentSchema = new Schema<IStudent>({
     dynamicData: {
-        type: Map,
+        type: Object,
         of: Schema.Types.Mixed,
         required: true,
         default: {}
     },
-    
 }, { timestamps: true });
 
 // We do NOT call mongoose.model() globally because this is a tenant-specific model.

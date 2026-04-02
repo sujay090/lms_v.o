@@ -17,3 +17,15 @@ export const getAllStudents = async () => {
     const response = await api.get('/admin/students');
     return response.data;
 };
+
+// edit the student
+export const editStudent = async (id: string) => {
+    const response = await api.patch(`/admin/students/${id}`);
+    return response;
+}
+
+// delete student
+export const deleteStudent = async (id: string) => {
+    const response = await api.delete(`/admin/students/${id}`);
+    return response;
+}
