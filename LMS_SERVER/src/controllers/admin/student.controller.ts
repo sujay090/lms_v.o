@@ -101,7 +101,6 @@ export const deleteStudent = async (req: Request, res: Response) => {
             if (response?.$metadata.httpStatusCode !== 204) {
                 return res.status(500).json({ success: false, message: 'Failed to delete student image' });
             }
-            console.log(response)
         }
 
         if (student.dynamicData.documents) {
@@ -109,7 +108,6 @@ export const deleteStudent = async (req: Request, res: Response) => {
             if (response?.$metadata.httpStatusCode !== 204) {
                 return res.status(500).json({ success: false, message: 'Failed to delete student documents' });
             }
-            console.log(response)
 
         }
         await Student.findByIdAndDelete(id);

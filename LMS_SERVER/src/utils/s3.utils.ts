@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import crypto from "crypto";
 
 const getS3Client = () => {
     return new S3Client({
@@ -24,7 +25,7 @@ export const uploadFileToS3 = async (
             throw new Error("AWS_S3_BUCKET_NAME is not defined in environment variables.");
         }
 
-        const uniqueFileName = `${Date.now()}-${fileName.replace(/\s+/g, '-')}`;
+        const uniqueFileName = `${crypto.randomUUID()}-${fileName.replace(/\s+/g, '-')}`;
 
         const uploadCommand = new PutObjectCommand({
             Bucket: bucketName,
@@ -39,6 +40,36 @@ export const uploadFileToS3 = async (
         return uniqueFileName;
     } catch (error) {
         console.error("Error uploading file to S3:", error);
+        throw error;
+    }
+};
+
+export const getUploadPresignedUrl = async (
+    fileName: string,
+    mimetype: string
+): Promise<{ uploadUrl: string; key: string }> => {
+    try {
+        const s3Client = getS3Client();
+        const bucketName = process.env.AWS_S3_BUCKET_NAME!;
+
+        if (!bucketName) {
+            throw new Error("AWS_S3_BUCKET_NAME is not defined in environment variables.");
+        }
+
+        const uniqueFileName = `${crypto.randomUUID()}-${fileName.replace(/\s+/g, '-')}`;
+
+        const command = new PutObjectCommand({
+            Bucket: bucketName,
+            Key: uniqueFileName,
+            ContentType: mimetype,
+        });
+
+        // The URL expires in 15 minutes
+        const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+
+        return { uploadUrl, key: uniqueFileName };
+    } catch (error) {
+        console.error("Error generating presigned upload URL:", error);
         throw error;
     }
 };

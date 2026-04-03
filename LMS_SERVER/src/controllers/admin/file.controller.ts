@@ -1,20 +1,22 @@
 import { Request, Response } from "express";
-import { uploadFileToS3, deleteFileFromS3, getFilePresignedUrl } from "../../utils/s3.utils";
+import { uploadFileToS3, deleteFileFromS3, getFilePresignedUrl, getUploadPresignedUrl } from "../../utils/s3.utils";
 
-export const uploadFile = async (req: Request, res: Response) => {
+export const getUploadUrl = async (req: Request, res: Response) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: "No file provided" });
+        const { fileName, fileType } = req.body;
+
+        if (!fileName || !fileType) {
+            return res.status(400).json({ success: false, message: "fileName and fileType are required" });
         }
 
-        const key = await uploadFileToS3(req.file.buffer, req.file.originalname, req.file.mimetype);
-
+        const { uploadUrl, key } = await getUploadPresignedUrl(fileName, fileType);
+        
         const fileUrl = `${req.protocol}://${req.get("host")}/api/admin/files/view/${key}`;
 
-        res.status(200).json({ success: true, message: "File uploaded successfully", data: { url: fileUrl, key } });
+        res.status(200).json({ success: true, message: "Upload URL generated successfully", data: { uploadUrl, url: fileUrl, key } });
     } catch (error) {
-        console.error("Upload file error:", error);
-        res.status(500).json({ success: false, message: "Failed to upload file" });
+        console.error("Get upload url error:", error);
+        res.status(500).json({ success: false, message: "Failed to generate upload URL" });
     }
 };
 

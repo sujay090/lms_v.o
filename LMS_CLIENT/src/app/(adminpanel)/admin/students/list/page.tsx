@@ -128,10 +128,7 @@ export default function StudentsManagementPage() {
                                         <TableCell>
                                             {photoUrl ? (
                                                 <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                                                    <Image src={photoUrl} alt="Student" className="h-full w-full object-cover"
-                                                        width={40}
-                                                        height={40}
-                                                    />
+                                                    <img src={photoUrl} alt="Student" className="h-full w-full object-cover" />
                                                 </div>
                                             ) : (
                                                 <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border border-indigo-200">

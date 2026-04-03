@@ -12,8 +12,8 @@ import { FormField } from "@/types/admin"
 
 export default function RegisterStudentPage() {
     const [formData, setFormData] = useState<Record<string, any>>({})
+    const [filesToUpload, setFilesToUpload] = useState<Record<string, File>>({})
     const [submitting, setSubmitting] = useState(false)
-    const [uploading, setUploading] = useState<Record<string, boolean>>({})
     const [success, setSuccess] = useState(false)
     const [error, setError] = useState('')
     const queryClient = useQueryClient()
@@ -29,21 +29,9 @@ export default function RegisterStudentPage() {
         setFormData(prev => ({ ...prev, [id]: value }))
     }
 
-    const handleFileUpload = async (id: string, file: File) => {
+    const handleFileSelect = (id: string, file: File) => {
         if (!file) return;
-        setUploading(prev => ({ ...prev, [id]: true }));
-        try {
-            const result = await uploadFile(file);
-            if (result.success && result.data && result.data.url) {
-                setFormData(prev => ({ ...prev, [id]: result.data!.url }));
-            } else {
-                setError(result.message || 'Failed to upload file');
-            }
-        } catch (err: any) {
-            setError(err.message || 'File upload error');
-        } finally {
-            setUploading(prev => ({ ...prev, [id]: false }));
-        }
+        setFilesToUpload(prev => ({ ...prev, [id]: file }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -52,13 +40,30 @@ export default function RegisterStudentPage() {
         setError('');
 
         try {
-            const result = await registerStudent(formData);
+            // First, upload all pending files sequentially
+            const finalFormData = { ...formData };
+            const fileEntries = Object.entries(filesToUpload);
+            
+            for (const [id, file] of fileEntries) {
+                const result = await uploadFile(file);
+                if (result.success && result.data && result.data.url) {
+                    finalFormData[id] = result.data.url;
+                } else {
+                    setError(result.message || `Failed to upload ${file.name}`);
+                    setSubmitting(false);
+                    return; // Abort submission
+                }
+            }
+
+            // After all files successfully uploaded, register student
+            const result = await registerStudent(finalFormData);
 
             if (result.success) {
                 setSuccess(true);
                 const resetData: Record<string, any> = {};
                 fields.forEach((f: any) => resetData[f.id] = '');
                 setFormData(resetData);
+                setFilesToUpload({});
                 queryClient.invalidateQueries({ queryKey: ["all-students"] });
 
                 // Disappear success message after 3 seconds
@@ -181,29 +186,37 @@ export default function RegisterStudentPage() {
 
                                     {field.type === 'file' && (
                                         <div className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex items-center justify-center transition focus-within:ring-2 focus-within:ring-indigo-500">
-                                            {uploading[field.id] ? (
+                                            {submitting && filesToUpload[field.id] ? (
                                                 <div className="flex items-center gap-2 text-indigo-600 p-2">
                                                     <Loader2 className="h-5 w-5 animate-spin" />
-                                                    <span className="text-sm font-medium">Uploading...</span>
+                                                    <span className="text-sm font-medium">Uploading {filesToUpload[field.id].name}...</span>
                                                 </div>
-                                            ) : formData[field.id] ? (
-                                                <div className="flex flex-col items-center gap-2 relative">
-                                                    <span className="text-sm text-green-600 font-medium">File Uploaded Successfully</span>
-                                                    <a href={formData[field.id]} target="_blank" rel="noreferrer" className="text-xs text-indigo-500 underline truncate max-w-[200px]">View File</a>
-                                                    <Button variant="outline" size="sm" className="mt-2" onClick={(e) => { e.preventDefault(); handleInputChange(field.id, ''); }}>Choose Another</Button>
+                                            ) : filesToUpload[field.id] ? (
+                                                <div className="flex flex-col items-center gap-2 relative z-10 w-full">
+                                                    <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                                                    <span className="text-sm text-slate-700 font-medium truncate max-w-[200px]" title={filesToUpload[field.id].name}>{filesToUpload[field.id].name}</span>
+                                                    <span className="text-xs text-slate-500">Ready to upload</span>
+                                                    <Button variant="outline" size="sm" className="mt-2" onClick={(e) => { 
+                                                        e.preventDefault(); 
+                                                        setFilesToUpload(prev => {
+                                                            const copy = {...prev};
+                                                            delete copy[field.id];
+                                                            return copy;
+                                                        });
+                                                    }}>Remove File</Button>
                                                 </div>
                                             ) : (
                                                 <>
                                                     <div className="flex flex-col items-center gap-2 pointer-events-none p-2">
                                                         <UploadCloud className="h-6 w-6 text-slate-400" />
-                                                        <span className="text-sm text-slate-500 font-medium">Click to upload file</span>
+                                                        <span className="text-sm text-slate-500 font-medium">Click to select file</span>
                                                     </div>
                                                     <Input
                                                         type="file"
-                                                        required={field.required && !formData[field.id]}
+                                                        required={field.required}
                                                         onChange={(e) => {
                                                             const file = e.target.files?.[0];
-                                                            if (file) handleFileUpload(field.id, file);
+                                                            if (file) handleFileSelect(field.id, file);
                                                         }}
                                                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                     />
